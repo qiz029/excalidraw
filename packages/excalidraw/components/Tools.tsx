@@ -15,6 +15,12 @@ import {
   SelectionIcon,
   RectangleIcon,
   DiamondIcon,
+  HexagonIcon,
+  TriangleIcon,
+  DatabaseIcon,
+  PipeIcon,
+  CloudIcon,
+  DocumentIcon,
   EllipseIcon,
   ArrowIcon,
   LineIcon,
@@ -86,6 +92,36 @@ export const TOOLS = defineTools({
     icon: DiamondIcon,
     letterKey: KEYS.D,
     numericKey: KEYS["3"],
+    fillable: true,
+  },
+  hexagon: {
+    icon: HexagonIcon,
+    letterKey: KEYS.G,
+    fillable: true,
+  },
+  triangle: {
+    icon: TriangleIcon,
+    letterKey: KEYS.Z,
+    fillable: true,
+  },
+  database: {
+    icon: DatabaseIcon,
+    letterKey: KEYS.B,
+    fillable: true,
+  },
+  pipe: {
+    icon: PipeIcon,
+    letterKey: KEYS.W,
+    fillable: true,
+  },
+  cloud: {
+    icon: CloudIcon,
+    letterKey: KEYS.C,
+    fillable: true,
+  },
+  document: {
+    icon: DocumentIcon,
+    letterKey: KEYS.Y,
     fillable: true,
   },
   ellipse: {
@@ -313,6 +349,12 @@ const createToolButton = (
 export const HandToolButton = createToolButton("hand");
 export const RectangleToolButton = createToolButton("rectangle");
 export const DiamondToolButton = createToolButton("diamond");
+export const HexagonToolButton = createToolButton("hexagon");
+export const TriangleToolButton = createToolButton("triangle");
+export const DatabaseToolButton = createToolButton("database");
+export const PipeToolButton = createToolButton("pipe");
+export const CloudToolButton = createToolButton("cloud");
+export const DocumentToolButton = createToolButton("document");
 export const EllipseToolButton = createToolButton("ellipse");
 export const ArrowToolButton = createToolButton("arrow");
 export const LineToolButton = createToolButton("line");

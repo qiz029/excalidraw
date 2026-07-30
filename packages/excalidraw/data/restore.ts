@@ -206,6 +206,12 @@ export const AllowedExcalidrawActiveTools: Record<
   text: true,
   rectangle: true,
   diamond: true,
+  hexagon: true,
+  triangle: true,
+  database: true,
+  pipe: true,
+  cloud: true,
+  document: true,
   ellipse: true,
   line: true,
   image: true,
@@ -692,6 +698,12 @@ export const restoreElement = (
     case "ellipse":
     case "rectangle":
     case "diamond":
+    case "hexagon":
+    case "triangle":
+    case "database":
+    case "pipe":
+    case "cloud":
+    case "document":
     case "iframe":
     case "embeddable":
       return restoreElementWithProperties(element, {});

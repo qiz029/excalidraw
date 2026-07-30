@@ -1,57 +1,25 @@
 import type { ElementOrToolType } from "@excalidraw/excalidraw/types";
 
+import { getElementCapabilities } from "./elementCapabilities";
+
 export const hasBackground = (type: ElementOrToolType) =>
-  type === "rectangle" ||
-  type === "iframe" ||
-  type === "embeddable" ||
-  type === "ellipse" ||
-  type === "diamond" ||
-  type === "line" ||
-  type === "freedraw" ||
-  type === "autoshape";
+  getElementCapabilities(type).hasBackground;
 
 export const hasStrokeColor = (type: ElementOrToolType) =>
-  type === "rectangle" ||
-  type === "ellipse" ||
-  type === "diamond" ||
-  type === "freedraw" ||
-  type === "arrow" ||
-  type === "line" ||
-  type === "text" ||
-  type === "embeddable" ||
-  type === "autoshape";
+  getElementCapabilities(type).hasStrokeColor;
 
 export const hasStrokeWidth = (type: ElementOrToolType) =>
-  type === "rectangle" ||
-  type === "iframe" ||
-  type === "embeddable" ||
-  type === "ellipse" ||
-  type === "diamond" ||
-  type === "freedraw" ||
-  type === "arrow" ||
-  type === "line" ||
-  type === "autoshape";
+  getElementCapabilities(type).hasStrokeWidth;
 
 export const hasStrokeStyle = (type: ElementOrToolType) =>
-  type === "rectangle" ||
-  type === "iframe" ||
-  type === "embeddable" ||
-  type === "ellipse" ||
-  type === "diamond" ||
-  type === "arrow" ||
-  type === "line" ||
-  type === "autoshape";
+  getElementCapabilities(type).hasStrokeStyle;
 
 export const hasFreedrawMode = (type: ElementOrToolType) => type === "freedraw";
 
 export const canChangeRoundness = (type: ElementOrToolType) =>
-  type === "rectangle" ||
-  type === "iframe" ||
-  type === "embeddable" ||
-  type === "line" ||
-  type === "diamond" ||
-  type === "image";
+  getElementCapabilities(type).canChangeRoundness;
 
 export const toolIsArrow = (type: ElementOrToolType) => type === "arrow";
 
-export const canHaveArrowheads = (type: ElementOrToolType) => type === "arrow";
+export const canHaveArrowheads = (type: ElementOrToolType) =>
+  getElementCapabilities(type).canHaveArrowheads;

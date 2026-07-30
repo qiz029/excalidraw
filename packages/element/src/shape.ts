@@ -54,7 +54,7 @@ import {
   isIframeLikeElement,
   isLinearElement,
 } from "./typeChecks";
-import { getCornerRadius, isPathALoop } from "./utils";
+import { getCornerRadius, getPolygonCornerRadius, isPathALoop } from "./utils";
 import { headingForPointIsHorizontal } from "./heading";
 
 import { canChangeRoundness } from "./comparisons";
@@ -63,11 +63,14 @@ import {
   getArrowheadPoints,
   getDiamondPoints,
   getElementAbsoluteCoords,
+  getHexagonPoints,
+  getTrianglePoints,
 } from "./bounds";
 import { shouldTestInside } from "./collision";
 
 import type {
   ExcalidrawElement,
+  ExcalidrawElementType,
   ExcalidrawSelectionElement,
   ExcalidrawLinearElement,
   ExcalidrawFreeDrawElement,
@@ -229,6 +232,12 @@ export const generateRoughOptions = (
     case "iframe":
     case "embeddable":
     case "diamond":
+    case "hexagon":
+    case "triangle":
+    case "database":
+    case "pipe":
+    case "cloud":
+    case "document":
     case "ellipse": {
       options.fillStyle = element.fillStyle;
       options.fill = isTransparent(element.backgroundColor)
@@ -743,6 +752,378 @@ export const generateLinearCollisionShape = (
 };
 
 /**
+ * Shared context passed to registered shape generators.
+ */
+type ShapeGeneratorContext = {
+  isExporting: boolean;
+  canvasBackgroundColor: string;
+  embedsValidationStatus: EmbedsValidationStatus | null;
+  isDarkMode: boolean;
+};
+
+type ElementShapeGenerator = (
+  element: ExcalidrawElement,
+  generator: RoughGenerator,
+  context: ShapeGeneratorContext,
+) => ElementShape;
+
+/**
+ * Builds the rounded-corner SVG path for a diamond element from its flat
+ * vertex list (as returned by `getDiamondPoints`).
+ *
+ * Kept as a separate builder (instead of a generic polygon corner-rounding
+ * algorithm) so the generated path string stays byte-identical to the
+ * historical diamond implementation.
+ */
+const buildDiamondRoundedPath = (
+  points: readonly number[],
+  element: ExcalidrawElement,
+): string => {
+  const [topX, topY, rightX, rightY, bottomX, bottomY, leftX, leftY] = points;
+  const verticalRadius = getCornerRadius(Math.abs(topX - leftX), element);
+  const horizontalRadius = getCornerRadius(Math.abs(rightY - topY), element);
+
+  return `M ${topX + verticalRadius} ${topY + horizontalRadius} L ${
+    rightX - verticalRadius
+  } ${rightY - horizontalRadius}
+            C ${rightX} ${rightY}, ${rightX} ${rightY}, ${
+    rightX - verticalRadius
+  } ${rightY + horizontalRadius}
+            L ${bottomX + verticalRadius} ${bottomY - horizontalRadius}
+            C ${bottomX} ${bottomY}, ${bottomX} ${bottomY}, ${
+    bottomX - verticalRadius
+  } ${bottomY - horizontalRadius}
+            L ${leftX + verticalRadius} ${leftY + horizontalRadius}
+            C ${leftX} ${leftY}, ${leftX} ${leftY}, ${leftX + verticalRadius} ${
+    leftY - horizontalRadius
+  }
+            L ${topX - verticalRadius} ${topY + horizontalRadius}
+            C ${topX} ${topY}, ${topX} ${topY}, ${topX + verticalRadius} ${
+    topY + horizontalRadius
+  }`;
+};
+
+/**
+ * Builds a generic rounded-corner SVG path for a polygon given as a flat
+ * vertex list (`[x0, y0, x1, y1, ...]`, element-local coordinates). Each
+ * vertex is replaced by a cubic curve through the vertex, with the corner
+ * radius clamped to half the shortest adjacent edge.
+ */
+const buildRoundedPolygonPath = (
+  points: readonly number[],
+  element: ExcalidrawElement,
+): string => {
+  const vertices: [number, number][] = [];
+  for (let i = 0; i + 1 < points.length; i += 2) {
+    vertices.push([points[i], points[i + 1]]);
+  }
+
+  const count = vertices.length;
+
+  const radiusAt = (index: number) => {
+    const [x, y] = vertices[index];
+    const [prevX, prevY] = vertices[(index - 1 + count) % count];
+    const [nextX, nextY] = vertices[(index + 1) % count];
+    const minEdgeLength = Math.min(
+      Math.hypot(x - prevX, y - prevY),
+      Math.hypot(nextX - x, nextY - y),
+    );
+    return getPolygonCornerRadius(minEdgeLength, element);
+  };
+
+  const pointAlong = (
+    from: [number, number],
+    to: [number, number],
+    distance: number,
+  ): [number, number] => {
+    const length = Math.hypot(to[0] - from[0], to[1] - from[1]) || 1;
+    const t = distance / length;
+    return [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t];
+  };
+
+  const departures = vertices.map((vertex, index) =>
+    pointAlong(vertex, vertices[(index + 1) % count], radiusAt(index)),
+  );
+  const approaches = vertices.map((vertex, index) =>
+    pointAlong(vertex, vertices[(index - 1 + count) % count], radiusAt(index)),
+  );
+
+  let d = `M ${departures[0][0]} ${departures[0][1]}`;
+  for (let i = 1; i < count; i++) {
+    const [vx, vy] = vertices[i];
+    d += ` L ${approaches[i][0]} ${approaches[i][1]} C ${vx} ${vy}, ${vx} ${vy}, ${departures[i][0]} ${departures[i][1]}`;
+  }
+  const [v0x, v0y] = vertices[0];
+  d += ` L ${approaches[0][0]} ${approaches[0][1]} C ${v0x} ${v0y}, ${v0x} ${v0y}, ${departures[0][0]} ${departures[0][1]}`;
+
+  return d;
+};
+
+/**
+ * Generates a roughjs polygon Drawable for an element from a flat vertex
+ * list (`[x0, y0, x1, y1, ...]`, element-local coordinates).
+ *
+ * When the element has roundness, `buildRoundedPath` is used to produce an
+ * SVG path with rounded corners instead of the raw polygon.
+ */
+export const generatePolygonShape = (
+  element: ExcalidrawElement,
+  generator: RoughGenerator,
+  isDarkMode: boolean,
+  points: readonly number[],
+  buildRoundedPath: (
+    points: readonly number[],
+    element: ExcalidrawElement,
+  ) => string,
+): Drawable => {
+  if (element.roundness) {
+    return generator.path(
+      buildRoundedPath(points, element),
+      generateRoughOptions(element, true, isDarkMode),
+    );
+  }
+
+  const vertices: RoughPoint[] = [];
+  for (let i = 0; i + 1 < points.length; i += 2) {
+    vertices.push([points[i], points[i + 1]]);
+  }
+
+  return generator.polygon(
+    vertices,
+    generateRoughOptions(element, false, isDarkMode),
+  );
+};
+
+const generateRectanguloidShape = (
+  element: ExcalidrawElement,
+  generator: RoughGenerator,
+  { isExporting, embedsValidationStatus, isDarkMode }: ShapeGeneratorContext,
+): Drawable => {
+  // this is for rendering the stroke/bg of the embeddable, especially
+  // when the src url is not set
+  if (element.roundness) {
+    const w = element.width;
+    const h = element.height;
+    const r = getCornerRadius(Math.min(w, h), element);
+    return generator.path(
+      `M ${r} 0 L ${w - r} 0 Q ${w} 0, ${w} ${r} L ${w} ${h - r} Q ${w} ${h}, ${
+        w - r
+      } ${h} L ${r} ${h} Q 0 ${h}, 0 ${h - r} L 0 ${r} Q 0 0, ${r} 0`,
+      generateRoughOptions(
+        modifyIframeLikeForRoughOptions(
+          element,
+          isExporting,
+          embedsValidationStatus,
+        ),
+        true,
+        isDarkMode,
+      ),
+    );
+  }
+
+  return generator.rectangle(
+    0,
+    0,
+    element.width,
+    element.height,
+    generateRoughOptions(
+      modifyIframeLikeForRoughOptions(
+        element,
+        isExporting,
+        embedsValidationStatus,
+      ),
+      false,
+      isDarkMode,
+    ),
+  );
+};
+
+const generateEllipseShape = (
+  element: ExcalidrawElement,
+  generator: RoughGenerator,
+  { isDarkMode }: ShapeGeneratorContext,
+): Drawable =>
+  generator.ellipse(
+    element.width / 2,
+    element.height / 2,
+    element.width,
+    element.height,
+    generateRoughOptions(element, false, isDarkMode),
+  );
+
+/**
+ * Combines the sets of multiple drawables into a single synthetic Drawable
+ * (used for composite shapes like cylinders whose cap and body are
+ * generated separately).
+ */
+const combineDrawables = (shape: string, drawables: Drawable[]): Drawable => ({
+  shape,
+  sets: drawables.flatMap((drawable) => drawable.sets),
+  options: drawables[0].options,
+});
+
+/** cubic bezier approximation factor for a quarter ellipse */
+const KAPPA = 0.5522847498;
+
+/**
+ * Generates a cylinder shape: a vertical one ("database", top ellipse cap +
+ * body with a bottom half-ellipse arc) or a horizontal one ("pipe", ellipse
+ * caps on both ends). Roundness is not supported and ignored.
+ */
+const generateCylinderShape = (
+  element: ExcalidrawElement,
+  generator: RoughGenerator,
+  isDarkMode: boolean,
+  orientation: "vertical" | "horizontal",
+): Drawable => {
+  const w = element.width;
+  const h = element.height;
+  const options = generateRoughOptions(element, false, isDarkMode);
+  const fillOnlyOptions = { ...options, stroke: "none" };
+  const strokeOnlyOptions = { ...options, fill: undefined };
+
+  if (orientation === "vertical") {
+    const capHeight = Math.min(w / 2, h / 4);
+    const cy = capHeight / 2;
+
+    const cap = generator.ellipse(w / 2, cy, w, capHeight, options);
+    // bottom half-ellipse approximated with two quarter cubic segments
+    const bottomArc =
+      `C ${KAPPA * (w / 2)} ${h - cy}, ${w / 2} ${h - KAPPA * cy}, ${
+        w / 2
+      } ${h}` +
+      ` C ${w / 2 + KAPPA * (w / 2)} ${h}, ${w} ${h - KAPPA * cy}, ${w} ${
+        h - cy
+      }`;
+    const bodyFill = generator.path(
+      `M 0 ${cy} L 0 ${h - cy} ${bottomArc} L ${w} ${cy} Z`,
+      fillOnlyOptions,
+    );
+    const bodyStroke = generator.path(
+      `M 0 ${cy} L 0 ${h - cy} ${bottomArc} L ${w} ${cy}`,
+      strokeOnlyOptions,
+    );
+
+    return combineDrawables("database", [cap, bodyFill, bodyStroke]);
+  }
+
+  const capWidth = Math.min(h / 2, w / 4);
+  const cx = capWidth / 2;
+
+  const leftCap = generator.ellipse(cx, h / 2, capWidth, h, options);
+  const rightCap = generator.ellipse(w - cx, h / 2, capWidth, h, options);
+  const bodyFill = generator.path(
+    `M ${cx} 0 L ${w - cx} 0 L ${w - cx} ${h} L ${cx} ${h} Z`,
+    fillOnlyOptions,
+  );
+  const bodyStroke = generator.path(
+    `M ${cx} 0 L ${w - cx} 0 M ${cx} ${h} L ${w - cx} ${h}`,
+    strokeOnlyOptions,
+  );
+
+  return combineDrawables("pipe", [leftCap, rightCap, bodyFill, bodyStroke]);
+};
+
+/**
+ * Generates a cloud outline from cubic bezier bumps (flat bottom edge).
+ * Roundness is not supported and ignored.
+ */
+const generateCloudShape = (
+  element: ExcalidrawElement,
+  generator: RoughGenerator,
+  { isDarkMode }: ShapeGeneratorContext,
+): Drawable => {
+  const w = element.width;
+  const h = element.height;
+  const p = (fractionX: number, fractionY: number) =>
+    `${fractionX * w} ${fractionY * h}`;
+
+  const d =
+    `M ${p(0.25, 0.85)}` +
+    ` L ${p(0.78, 0.85)}` +
+    // right bump
+    ` C ${p(0.95, 0.85)}, ${p(1, 0.68)}, ${p(0.92, 0.55)}` +
+    // upper right bump
+    ` C ${p(1, 0.38)}, ${p(0.88, 0.22)}, ${p(0.65, 0.3)}` +
+    // top bump
+    ` C ${p(0.6, 0.12)}, ${p(0.3, 0.1)}, ${p(0.3, 0.32)}` +
+    // left bump
+    ` C ${p(0.14, 0.24)}, ${p(0.02, 0.42)}, ${p(0.1, 0.6)}` +
+    // lower left bump
+    ` C ${p(0, 0.75)}, ${p(0.1, 0.85)}, ${p(0.25, 0.85)}` +
+    ` Z`;
+
+  return generator.path(d, generateRoughOptions(element, true, isDarkMode));
+};
+
+/**
+ * Generates a document shape: a rectangle with a wavy bottom edge.
+ * Roundness is not supported and ignored.
+ */
+const generateDocumentShape = (
+  element: ExcalidrawElement,
+  generator: RoughGenerator,
+  { isDarkMode }: ShapeGeneratorContext,
+): Drawable => {
+  const w = element.width;
+  const h = element.height;
+  // wave amplitude
+  const a = Math.min(w, h) * 0.08;
+
+  const d =
+    `M 0 0 L ${w} 0 L ${w} ${h - a}` +
+    ` Q ${0.75 * w} ${h - 3 * a}, ${0.5 * w} ${h - a}` +
+    ` Q ${0.25 * w} ${h}, 0 ${h - a}` +
+    ` Z`;
+
+  return generator.path(d, generateRoughOptions(element, true, isDarkMode));
+};
+
+/**
+ * Registry of roughjs shape generators for the "simple" (single-Drawable)
+ * element types. Adding a new polygonal shape only requires a vertex
+ * function plus one entry here.
+ */
+const ELEMENT_SHAPE_GENERATORS: Partial<
+  Record<ExcalidrawElementType, ElementShapeGenerator>
+> = {
+  rectangle: generateRectanguloidShape,
+  iframe: generateRectanguloidShape,
+  embeddable: generateRectanguloidShape,
+  ellipse: generateEllipseShape,
+  diamond: (element, generator, { isDarkMode }) =>
+    generatePolygonShape(
+      element,
+      generator,
+      isDarkMode,
+      getDiamondPoints(element),
+      buildDiamondRoundedPath,
+    ),
+  hexagon: (element, generator, { isDarkMode }) =>
+    generatePolygonShape(
+      element,
+      generator,
+      isDarkMode,
+      getHexagonPoints(element),
+      buildRoundedPolygonPath,
+    ),
+  triangle: (element, generator, { isDarkMode }) =>
+    generatePolygonShape(
+      element,
+      generator,
+      isDarkMode,
+      getTrianglePoints(element),
+      buildRoundedPolygonPath,
+    ),
+  database: (element, generator, { isDarkMode }) =>
+    generateCylinderShape(element, generator, isDarkMode, "vertical"),
+  pipe: (element, generator, { isDarkMode }) =>
+    generateCylinderShape(element, generator, isDarkMode, "horizontal"),
+  cloud: generateCloudShape,
+  document: generateDocumentShape,
+};
+
+/**
  * Generates the roughjs shape for given element.
  *
  * Low-level. Use `ShapeCache.generateElementShape` instead.
@@ -768,106 +1149,21 @@ const _generateElementShape = (
   switch (element.type) {
     case "rectangle":
     case "iframe":
-    case "embeddable": {
-      let shape: ElementShapes[typeof element.type];
-      // this is for rendering the stroke/bg of the embeddable, especially
-      // when the src url is not set
-
-      if (element.roundness) {
-        const w = element.width;
-        const h = element.height;
-        const r = getCornerRadius(Math.min(w, h), element);
-        shape = generator.path(
-          `M ${r} 0 L ${w - r} 0 Q ${w} 0, ${w} ${r} L ${w} ${
-            h - r
-          } Q ${w} ${h}, ${w - r} ${h} L ${r} ${h} Q 0 ${h}, 0 ${
-            h - r
-          } L 0 ${r} Q 0 0, ${r} 0`,
-          generateRoughOptions(
-            modifyIframeLikeForRoughOptions(
-              element,
-              isExporting,
-              embedsValidationStatus,
-            ),
-            true,
-            isDarkMode,
-          ),
-        );
-      } else {
-        shape = generator.rectangle(
-          0,
-          0,
-          element.width,
-          element.height,
-          generateRoughOptions(
-            modifyIframeLikeForRoughOptions(
-              element,
-              isExporting,
-              embedsValidationStatus,
-            ),
-            false,
-            isDarkMode,
-          ),
-        );
-      }
-      return shape;
-    }
-    case "diamond": {
-      let shape: ElementShapes[typeof element.type];
-
-      const [topX, topY, rightX, rightY, bottomX, bottomY, leftX, leftY] =
-        getDiamondPoints(element);
-      if (element.roundness) {
-        const verticalRadius = getCornerRadius(Math.abs(topX - leftX), element);
-
-        const horizontalRadius = getCornerRadius(
-          Math.abs(rightY - topY),
-          element,
-        );
-
-        shape = generator.path(
-          `M ${topX + verticalRadius} ${topY + horizontalRadius} L ${
-            rightX - verticalRadius
-          } ${rightY - horizontalRadius}
-            C ${rightX} ${rightY}, ${rightX} ${rightY}, ${
-            rightX - verticalRadius
-          } ${rightY + horizontalRadius}
-            L ${bottomX + verticalRadius} ${bottomY - horizontalRadius}
-            C ${bottomX} ${bottomY}, ${bottomX} ${bottomY}, ${
-            bottomX - verticalRadius
-          } ${bottomY - horizontalRadius}
-            L ${leftX + verticalRadius} ${leftY + horizontalRadius}
-            C ${leftX} ${leftY}, ${leftX} ${leftY}, ${leftX + verticalRadius} ${
-            leftY - horizontalRadius
-          }
-            L ${topX - verticalRadius} ${topY + horizontalRadius}
-            C ${topX} ${topY}, ${topX} ${topY}, ${topX + verticalRadius} ${
-            topY + horizontalRadius
-          }`,
-          generateRoughOptions(element, true, isDarkMode),
-        );
-      } else {
-        shape = generator.polygon(
-          [
-            [topX, topY],
-            [rightX, rightY],
-            [bottomX, bottomY],
-            [leftX, leftY],
-          ],
-          generateRoughOptions(element, false, isDarkMode),
-        );
-      }
-      return shape;
-    }
+    case "embeddable":
+    case "diamond":
+    case "hexagon":
+    case "triangle":
+    case "database":
+    case "pipe":
+    case "cloud":
+    case "document":
     case "ellipse": {
-      const shape: ElementShapes[typeof element.type] = generator.ellipse(
-        element.width / 2,
-        element.height / 2,
-        element.width,
-        element.height,
-        generateRoughOptions(element, false, isDarkMode),
-      );
-      return shape;
+      return ELEMENT_SHAPE_GENERATORS[element.type]!(element, generator, {
+        isExporting,
+        canvasBackgroundColor,
+        embedsValidationStatus,
+        isDarkMode,
+      });
     }
     case "line":
     case "arrow": {
@@ -1074,6 +1370,12 @@ export const getElementShape = <Point extends GlobalPoint | LocalPoint>(
   switch (element.type) {
     case "rectangle":
     case "diamond":
+    case "hexagon":
+    case "triangle":
+    case "database":
+    case "pipe":
+    case "cloud":
+    case "document":
     case "frame":
     case "magicframe":
     case "embeddable":

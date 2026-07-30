@@ -67,6 +67,7 @@ export * from "./cropElement";
 export * from "./delta";
 export * from "./distance";
 export * from "./distribute";
+export * from "./elementCapabilities";
 export * from "./dragElements";
 export * from "./duplicate";
 export * from "./elbowArrow";

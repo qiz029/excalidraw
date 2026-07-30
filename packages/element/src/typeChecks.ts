@@ -6,6 +6,8 @@ import type { ElementOrToolType } from "@excalidraw/excalidraw/types";
 
 import type { MarkNonNullable } from "@excalidraw/common/utility-types";
 
+import { getElementCapabilities } from "./elementCapabilities";
+
 import type {
   ExcalidrawElement,
   ExcalidrawTextElement,
@@ -181,15 +183,9 @@ export const isBindableElement = <T extends ExcalidrawElement>(
   return (
     element != null &&
     (!element.locked || includeLocked === true) &&
-    (element.type === "rectangle" ||
-      element.type === "diamond" ||
-      element.type === "ellipse" ||
-      element.type === "image" ||
-      element.type === "iframe" ||
-      element.type === "embeddable" ||
-      element.type === "frame" ||
-      element.type === "magicframe" ||
-      (element.type === "text" && !element.containerId))
+    getElementCapabilities(element.type).isBindable &&
+    // text elements are only bindable when not bound to a container
+    (element.type !== "text" || !element.containerId)
   );
 };
 
@@ -234,10 +230,7 @@ export const isTextBindableContainer = <T extends ExcalidrawElement>(
   return (
     element != null &&
     (!element.locked || includeLocked === true) &&
-    (element.type === "rectangle" ||
-      element.type === "diamond" ||
-      element.type === "ellipse" ||
-      isArrowElement(element))
+    getElementCapabilities(element.type).isTextBindableContainer
   );
 };
 
@@ -251,6 +244,12 @@ export const isExcalidrawElement = (
   switch (type) {
     case "text":
     case "diamond":
+    case "hexagon":
+    case "triangle":
+    case "database":
+    case "pipe":
+    case "cloud":
+    case "document":
     case "rectangle":
     case "iframe":
     case "embeddable":
@@ -274,11 +273,7 @@ export const isExcalidrawElement = (
 export const isFlowchartNodeElement = <T extends ExcalidrawElement>(
   element: T,
 ): element is T & ExcalidrawFlowchartNodeElement => {
-  return (
-    element.type === "rectangle" ||
-    element.type === "ellipse" ||
-    element.type === "diamond"
-  );
+  return getElementCapabilities(element.type).isFlowchartNode;
 };
 
 export const hasBoundTextElement = <T extends ExcalidrawElement>(
@@ -307,13 +302,10 @@ export const isArrowBoundToElement = (element: ExcalidrawArrowElement) => {
 };
 
 export const isUsingAdaptiveRadius = (type: string) =>
-  type === "rectangle" ||
-  type === "embeddable" ||
-  type === "iframe" ||
-  type === "image";
+  getElementCapabilities(type).usesAdaptiveRadius;
 
 export const isUsingProportionalRadius = (type: string) =>
-  type === "line" || type === "arrow" || type === "diamond";
+  getElementCapabilities(type).usesProportionalRadius;
 
 export const canApplyRoundnessTypeToElement = (
   roundnessType: RoundnessType,
@@ -394,22 +386,5 @@ export const canBecomePolygon = (
   );
 };
 
-export const isEligibleFrameChildType = (type: ElementOrToolType) => {
-  switch (type) {
-    case "rectangle":
-    case "diamond":
-    case "ellipse":
-    case "arrow":
-    case "line":
-    case "freedraw":
-    case "text":
-    case "image":
-    case "frame":
-    case "embeddable": {
-      return true;
-    }
-    default: {
-      return false;
-    }
-  }
-};
+export const isEligibleFrameChildType = (type: ElementOrToolType) =>
+  getElementCapabilities(type).isEligibleFrameChild;

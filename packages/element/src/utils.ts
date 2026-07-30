@@ -34,7 +34,12 @@ import type {
   Zoom,
 } from "@excalidraw/excalidraw/types";
 
-import { elementCenterPoint, getDiamondPoints } from "./bounds";
+import {
+  elementCenterPoint,
+  getDiamondPoints,
+  getHexagonPoints,
+  getTrianglePoints,
+} from "./bounds";
 
 import { generateLinearCollisionShape } from "./shape";
 
@@ -55,8 +60,10 @@ import type {
   ExcalidrawDiamondElement,
   ExcalidrawElement,
   ExcalidrawFreeDrawElement,
+  ExcalidrawHexagonElement,
   ExcalidrawLinearElement,
   ExcalidrawRectanguloidElement,
+  ExcalidrawTriangleElement,
 } from "./types";
 
 type ElementShape = [LineSegment<GlobalPoint>[], Curve<GlobalPoint>[]];
@@ -470,6 +477,196 @@ export function deconstructDiamondElement(
   setElementShapesCacheEntry(element, shape, offset);
 
   return shape;
+}
+
+/**
+ * Returns a point on the segment `from` -> `to` at given distance from `from`.
+ */
+const pointAlongSegment = (
+  from: GlobalPoint,
+  to: GlobalPoint,
+  distance: number,
+): GlobalPoint => {
+  const length = pointDistance(from, to) || 1;
+  const t = distance / length;
+  return pointFrom(
+    from[0] + (to[0] - from[0]) * t,
+    from[1] + (to[1] - from[1]) * t,
+  );
+};
+
+/**
+ * Corner radius for a polygon vertex whose shortest adjacent edge is
+ * `minEdgeLength` long. Falls back to a tiny epsilon radius for non-rounded
+ * polygons (so sides don't degenerate), mirroring the diamond behavior.
+ */
+export const getPolygonCornerRadius = (
+  minEdgeLength: number,
+  element: ExcalidrawElement,
+): number => {
+  if (element.roundness) {
+    return Math.min(
+      getCornerRadius(minEdgeLength / 2, element),
+      minEdgeLength / 2,
+    );
+  }
+  return minEdgeLength * 0.01;
+};
+
+/**
+ * Get the **unrotated** corner curves of a polygon element from its flat
+ * vertex list (element-local `[x0, y0, x1, y1, ...]`), one curve per vertex,
+ * ordered like the input vertices.
+ *
+ * @param element The polygon element
+ * @param points Flat vertex list in element-local coordinates
+ * @returns Corner curves in vertex order
+ */
+const getPolygonBaseCorners = (
+  element: ExcalidrawElement,
+  points: readonly number[],
+): Curve<GlobalPoint>[] => {
+  const vertices: GlobalPoint[] = [];
+  for (let i = 0; i + 1 < points.length; i += 2) {
+    vertices.push(pointFrom(element.x + points[i], element.y + points[i + 1]));
+  }
+
+  const count = vertices.length;
+  return vertices.map((vertex, index) => {
+    const prev = vertices[(index - 1 + count) % count];
+    const next = vertices[(index + 1) % count];
+    const minEdgeLength = Math.min(
+      pointDistance(prev, vertex),
+      pointDistance(vertex, next),
+    );
+    const radius = getPolygonCornerRadius(minEdgeLength, element);
+
+    return curve(
+      pointAlongSegment(vertex, prev, radius),
+      vertex,
+      vertex,
+      pointAlongSegment(vertex, next, radius),
+    );
+  });
+};
+
+/**
+ * Get the **unrotated** building components of a polygon element from its
+ * flat vertex list, in the form of line segments and curves as a tuple.
+ *
+ * @param element The element to deconstruct
+ * @param points Flat vertex list in element-local coordinates
+ * @param offset An optional offset
+ * @returns Tuple of line **unrotated** segments (0) and curves (1)
+ */
+const deconstructPolygonFromPoints = (
+  element: ExcalidrawElement,
+  points: readonly number[],
+  offset: number = 0,
+): [LineSegment<GlobalPoint>[], Curve<GlobalPoint>[]] => {
+  const cachedShape = getElementShapesCacheEntry(element, offset);
+
+  if (cachedShape) {
+    return cachedShape;
+  }
+
+  const baseCorners = getPolygonBaseCorners(element, points);
+
+  const corners =
+    offset > 0
+      ? baseCorners.map(
+          (corner) =>
+            curveCatmullRomCubicApproxPoints(
+              curveOffsetPoints(corner, offset),
+            )!,
+        )
+      : baseCorners.map((corner) => [corner]);
+
+  const sides = corners.map((corner, index) => {
+    const nextCorner = corners[(index + 1) % corners.length];
+    return lineSegment<GlobalPoint>(
+      corner[corner.length - 1][3],
+      nextCorner[0][0],
+    );
+  });
+
+  const shape = [sides, corners.flat()] as ElementShape;
+
+  setElementShapesCacheEntry(element, shape, offset);
+
+  return shape;
+};
+
+/**
+ * Get the **unrotated** corner curves of a hexagon element, one curve per
+ * vertex, ordered clockwise starting from the top vertex.
+ *
+ * @param element The hexagon element
+ * @returns Corner curves in clockwise order
+ */
+export function getHexagonBaseCorners(
+  element: ExcalidrawHexagonElement,
+): Curve<GlobalPoint>[] {
+  return getPolygonBaseCorners(element, getHexagonPoints(element));
+}
+
+/**
+ * Get the **unrotated** building components of a hexagon element
+ * in the form of line segments and curves as a tuple, in this order.
+ *
+ * @param element The element to deconstruct
+ * @param offset An optional offset
+ * @returns Tuple of line **unrotated** segments (0) and curves (1)
+ */
+export function deconstructHexagonElement(
+  element: ExcalidrawHexagonElement,
+  offset: number = 0,
+): [LineSegment<GlobalPoint>[], Curve<GlobalPoint>[]] {
+  return deconstructPolygonFromPoints(
+    element,
+    getHexagonPoints(element),
+    offset,
+  );
+}
+
+/**
+ * Get the **unrotated** building components of a triangle element
+ * in the form of line segments and curves as a tuple, in this order.
+ *
+ * @param element The element to deconstruct
+ * @param offset An optional offset
+ * @returns Tuple of line **unrotated** segments (0) and curves (1)
+ */
+export function deconstructTriangleElement(
+  element: ExcalidrawTriangleElement,
+  offset: number = 0,
+): [LineSegment<GlobalPoint>[], Curve<GlobalPoint>[]] {
+  return deconstructPolygonFromPoints(
+    element,
+    getTrianglePoints(element),
+    offset,
+  );
+}
+
+/**
+ * Deconstructs a polygonal element (diamond/hexagon/triangle) into line
+ * segments and corner curves. See `deconstructDiamondElement`.
+ */
+export function deconstructPolygonElement(
+  element:
+    | ExcalidrawDiamondElement
+    | ExcalidrawHexagonElement
+    | ExcalidrawTriangleElement,
+  offset: number = 0,
+): [LineSegment<GlobalPoint>[], Curve<GlobalPoint>[]] {
+  switch (element.type) {
+    case "diamond":
+      return deconstructDiamondElement(element, offset);
+    case "hexagon":
+      return deconstructHexagonElement(element, offset);
+    case "triangle":
+      return deconstructTriangleElement(element, offset);
+  }
 }
 
 // Checks if the first and last point are close enough

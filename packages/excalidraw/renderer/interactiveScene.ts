@@ -22,7 +22,7 @@ import {
 } from "@excalidraw/common";
 
 import {
-  deconstructDiamondElement,
+  deconstructPolygonElement,
   deconstructRectanguloidElement,
   elementCenterPoint,
   getDiamondBaseCorners,
@@ -344,8 +344,10 @@ const renderBindingHighlightForBindableElement_simple = (
           context.stroke();
           break;
         case "diamond":
+        case "hexagon":
+        case "triangle":
           {
-            const [segments, curves] = deconstructDiamondElement(
+            const [segments, curves] = deconstructPolygonElement(
               suggestedBinding.element,
             );
 
@@ -687,8 +689,10 @@ const renderBindingHighlightForBindableElement_complex = (
           context.stroke();
           break;
         case "diamond":
+        case "hexagon":
+        case "triangle":
           {
-            const [segments, curves] = deconstructDiamondElement(
+            const [segments, curves] = deconstructPolygonElement(
               element,
               offset,
             );
@@ -846,8 +850,12 @@ const renderBindingHighlightForBindableElement_complex = (
       const cutoutRadius = midpointRadius + cutoutPadding;
 
       let midpoints;
-      if (element.type === "diamond") {
-        const [, curves] = deconstructDiamondElement(element);
+      if (
+        element.type === "diamond" ||
+        element.type === "hexagon" ||
+        element.type === "triangle"
+      ) {
+        const [, curves] = deconstructPolygonElement(element);
         const center = elementCenterPoint(element, allElementsMap);
 
         midpoints = curves.map((curve) => {

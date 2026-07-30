@@ -235,6 +235,36 @@ export const getElementsCorners = (
     const halfHeight = (y2 - y1) / 2;
 
     if (
+      (element.type === "hexagon" || element.type === "triangle") &&
+      !boundingBoxCorners
+    ) {
+      // snap to the vertices of the inscribed polygon
+      const vertexFractions =
+        element.type === "hexagon"
+          ? ([
+              [0.5, 0], // top
+              [1, 0.25], // upper right
+              [1, 0.75], // lower right
+              [0.5, 1], // bottom
+              [0, 0.75], // lower left
+              [0, 0.25], // upper left
+            ] as const)
+          : ([
+              [0.5, 0], // top
+              [1, 1], // bottom right
+              [0, 1], // bottom left
+            ] as const);
+      const vertices = vertexFractions.map(([fractionX, fractionY]) =>
+        pointRotateRads<GlobalPoint>(
+          pointFrom(x1 + (x2 - x1) * fractionX, y1 + (y2 - y1) * fractionY),
+          pointFrom(cx, cy),
+          element.angle,
+        ),
+      );
+      const center = pointFrom<GlobalPoint>(cx, cy);
+
+      result = omitCenter ? [...vertices] : [...vertices, center];
+    } else if (
       (element.type === "diamond" || element.type === "ellipse") &&
       !boundingBoxCorners
     ) {
@@ -1406,6 +1436,12 @@ export const isActiveToolNonLinearSnappable = (
     activeToolType === TOOL_TYPE.rectangle ||
     activeToolType === TOOL_TYPE.ellipse ||
     activeToolType === TOOL_TYPE.diamond ||
+    activeToolType === TOOL_TYPE.hexagon ||
+    activeToolType === TOOL_TYPE.triangle ||
+    activeToolType === TOOL_TYPE.database ||
+    activeToolType === TOOL_TYPE.pipe ||
+    activeToolType === TOOL_TYPE.cloud ||
+    activeToolType === TOOL_TYPE.document ||
     activeToolType === TOOL_TYPE.frame ||
     activeToolType === TOOL_TYPE.magicframe ||
     activeToolType === TOOL_TYPE.image ||

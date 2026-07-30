@@ -326,6 +326,12 @@ const drawElementOnCanvas = (
     case "iframe":
     case "embeddable":
     case "diamond":
+    case "hexagon":
+    case "triangle":
+    case "database":
+    case "pipe":
+    case "cloud":
+    case "document":
     case "ellipse": {
       context.lineJoin = "round";
       context.lineCap = "round";
@@ -815,6 +821,12 @@ export const renderElement = (
     }
     case "rectangle":
     case "diamond":
+    case "hexagon":
+    case "triangle":
+    case "database":
+    case "pipe":
+    case "cloud":
+    case "document":
     case "ellipse":
     case "line":
     case "arrow":

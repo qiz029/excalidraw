@@ -48,6 +48,30 @@ export const diamondFixture: ExcalidrawElement = {
   ...elementBase,
   type: "diamond",
 };
+export const hexagonFixture: ExcalidrawElement = {
+  ...elementBase,
+  type: "hexagon",
+};
+export const triangleFixture: ExcalidrawElement = {
+  ...elementBase,
+  type: "triangle",
+};
+export const databaseFixture: ExcalidrawElement = {
+  ...elementBase,
+  type: "database",
+};
+export const pipeFixture: ExcalidrawElement = {
+  ...elementBase,
+  type: "pipe",
+};
+export const cloudFixture: ExcalidrawElement = {
+  ...elementBase,
+  type: "cloud",
+};
+export const documentFixture: ExcalidrawElement = {
+  ...elementBase,
+  type: "document",
+};
 export const rectangleWithLinkFixture: ExcalidrawElement = {
   ...elementBase,
   type: "rectangle",

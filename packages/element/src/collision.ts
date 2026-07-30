@@ -35,6 +35,8 @@ import {
   getCubicBezierCurveBound,
   getDiamondPoints,
   getElementBounds,
+  getHexagonPoints,
+  getTrianglePoints,
   pointInsideBounds,
 } from "./bounds";
 import {
@@ -49,8 +51,10 @@ import {
 } from "./typeChecks";
 import {
   deconstructDiamondElement,
+  deconstructHexagonElement,
   deconstructLinearOrFreeDrawElement,
   deconstructRectanguloidElement,
+  deconstructTriangleElement,
 } from "./utils";
 
 import { getBoundTextElement } from "./textElement";
@@ -71,8 +75,10 @@ import type {
   ExcalidrawElement,
   ExcalidrawEllipseElement,
   ExcalidrawFreeDrawElement,
+  ExcalidrawHexagonElement,
   ExcalidrawLinearElement,
   ExcalidrawRectanguloidElement,
+  ExcalidrawTriangleElement,
   NonDeleted,
   NonDeletedExcalidrawElement,
   NonDeletedSceneElementsMap,
@@ -474,6 +480,10 @@ export const intersectElementWithLineSegment = (
     case "frame":
     case "selection":
     case "magicframe":
+    case "database":
+    case "pipe":
+    case "cloud":
+    case "document":
       return intersectRectanguloidWithLineSegment(
         element,
         elementsMap,
@@ -483,6 +493,22 @@ export const intersectElementWithLineSegment = (
       );
     case "diamond":
       return intersectDiamondWithLineSegment(
+        element,
+        elementsMap,
+        line,
+        offset,
+        onlyFirst,
+      );
+    case "hexagon":
+      return intersectHexagonWithLineSegment(
+        element,
+        elementsMap,
+        line,
+        offset,
+        onlyFirst,
+      );
+    case "triangle":
+      return intersectTriangleWithLineSegment(
         element,
         elementsMap,
         line,
@@ -726,6 +752,110 @@ const intersectDiamondWithLineSegment = (
 };
 
 /**
+ * Intersect a hexagon element with a line segment, mirroring
+ * `intersectDiamondWithLineSegment`.
+ *
+ * @param element
+ * @param a
+ * @param b
+ * @returns
+ */
+const intersectHexagonWithLineSegment = (
+  element: ExcalidrawHexagonElement,
+  elementsMap: ElementsMap,
+  l: LineSegment<GlobalPoint>,
+  offset: number = 0,
+  onlyFirst = false,
+): GlobalPoint[] => {
+  const center = elementCenterPoint(element, elementsMap);
+
+  // Rotate the point to the inverse direction to simulate the rotated hexagon
+  // points. It's all the same distance-wise.
+  const rotatedA = pointRotateRads(l[0], center, -element.angle as Radians);
+  const rotatedB = pointRotateRads(l[1], center, -element.angle as Radians);
+  const rotatedIntersector = lineSegment(rotatedA, rotatedB);
+
+  const [sides, corners] = deconstructHexagonElement(element, offset);
+  const intersections: GlobalPoint[] = [];
+
+  lineIntersections(
+    sides,
+    rotatedIntersector,
+    intersections,
+    center,
+    element.angle,
+    onlyFirst,
+  );
+
+  if (onlyFirst && intersections.length > 0) {
+    return intersections;
+  }
+
+  curveIntersections(
+    corners,
+    rotatedIntersector,
+    intersections,
+    center,
+    element.angle,
+    onlyFirst,
+  );
+
+  return intersections;
+};
+
+/**
+ * Intersect a triangle element with a line segment, mirroring
+ * `intersectDiamondWithLineSegment`.
+ *
+ * @param element
+ * @param a
+ * @param b
+ * @returns
+ */
+const intersectTriangleWithLineSegment = (
+  element: ExcalidrawTriangleElement,
+  elementsMap: ElementsMap,
+  l: LineSegment<GlobalPoint>,
+  offset: number = 0,
+  onlyFirst = false,
+): GlobalPoint[] => {
+  const center = elementCenterPoint(element, elementsMap);
+
+  // Rotate the point to the inverse direction to simulate the rotated
+  // triangle points. It's all the same distance-wise.
+  const rotatedA = pointRotateRads(l[0], center, -element.angle as Radians);
+  const rotatedB = pointRotateRads(l[1], center, -element.angle as Radians);
+  const rotatedIntersector = lineSegment(rotatedA, rotatedB);
+
+  const [sides, corners] = deconstructTriangleElement(element, offset);
+  const intersections: GlobalPoint[] = [];
+
+  lineIntersections(
+    sides,
+    rotatedIntersector,
+    intersections,
+    center,
+    element.angle,
+    onlyFirst,
+  );
+
+  if (onlyFirst && intersections.length > 0) {
+    return intersections;
+  }
+
+  curveIntersections(
+    corners,
+    rotatedIntersector,
+    intersections,
+    center,
+    element.angle,
+    onlyFirst,
+  );
+
+  return intersections;
+};
+
+/**
  *
  * @param element
  * @param a
@@ -831,6 +961,29 @@ export const isBindableElementInsideOtherBindable = (
         pointFrom(x + bottomX, y + bottomY + offset), // bottom
         pointFrom(x + leftX - offset, y + leftY), // left
       ];
+      return corners.map((corner) => pointRotateRads(corner, center, angle));
+    }
+    if (element.type === "hexagon" || element.type === "triangle") {
+      // Polygon vertices, tested with the offset applied radially
+      // outward from the center
+      const polygonPoints =
+        element.type === "hexagon"
+          ? getHexagonPoints(element)
+          : getTrianglePoints(element);
+      const cx = x + width / 2;
+      const cy = y + height / 2;
+      const corners: GlobalPoint[] = [];
+      for (let i = 0; i + 1 < polygonPoints.length; i += 2) {
+        const vx = x + polygonPoints[i];
+        const vy = y + polygonPoints[i + 1];
+        const length = Math.hypot(vx - cx, vy - cy) || 1;
+        corners.push(
+          pointFrom(
+            vx + ((vx - cx) / length) * offset,
+            vy + ((vy - cy) / length) * offset,
+          ),
+        );
+      }
       return corners.map((corner) => pointRotateRads(corner, center, angle));
     }
     if (element.type === "ellipse") {

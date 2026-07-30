@@ -39,18 +39,24 @@ import { getElementAbsoluteCoords } from "@excalidraw/element";
 import type {
   ElementsMap,
   ExcalidrawBindableElement,
+  ExcalidrawCloudElement,
+  ExcalidrawDatabaseElement,
   ExcalidrawDiamondElement,
+  ExcalidrawDocumentElement,
   ExcalidrawElement,
   ExcalidrawEllipseElement,
   ExcalidrawEmbeddableElement,
   ExcalidrawFrameLikeElement,
   ExcalidrawFreeDrawElement,
+  ExcalidrawHexagonElement,
   ExcalidrawIframeElement,
   ExcalidrawImageElement,
   ExcalidrawLinearElement,
+  ExcalidrawPipeElement,
   ExcalidrawRectangleElement,
   ExcalidrawSelectionElement,
   ExcalidrawTextElement,
+  ExcalidrawTriangleElement,
 } from "@excalidraw/element/types";
 import type { Curve, LineSegment, Polygon, Radians } from "@excalidraw/math";
 
@@ -105,6 +111,12 @@ export type GeometricShape<Point extends GlobalPoint | LocalPoint> =
 type RectangularElement =
   | ExcalidrawRectangleElement
   | ExcalidrawDiamondElement
+  | ExcalidrawHexagonElement
+  | ExcalidrawTriangleElement
+  | ExcalidrawDatabaseElement
+  | ExcalidrawPipeElement
+  | ExcalidrawCloudElement
+  | ExcalidrawDocumentElement
   | ExcalidrawFrameLikeElement
   | ExcalidrawEmbeddableElement
   | ExcalidrawImageElement
@@ -131,6 +143,27 @@ export const getPolygonShape = <Point extends GlobalPoint | LocalPoint>(
       pointRotateRads(pointFrom(x + width, cy), center, angle),
       pointRotateRads(pointFrom(cx, y + height), center, angle),
       pointRotateRads(pointFrom(x, cy), center, angle),
+    );
+  } else if (element.type === "hexagon") {
+    // pointy-top hexagon inscribed in the bounding box
+    data = polygon(
+      pointRotateRads(pointFrom(cx, y), center, angle),
+      pointRotateRads(pointFrom(x + width, y + height / 4), center, angle),
+      pointRotateRads(
+        pointFrom(x + width, y + (height * 3) / 4),
+        center,
+        angle,
+      ),
+      pointRotateRads(pointFrom(cx, y + height), center, angle),
+      pointRotateRads(pointFrom(x, y + (height * 3) / 4), center, angle),
+      pointRotateRads(pointFrom(x, y + height / 4), center, angle),
+    );
+  } else if (element.type === "triangle") {
+    // pointy-top triangle inscribed in the bounding box
+    data = polygon(
+      pointRotateRads(pointFrom(cx, y), center, angle),
+      pointRotateRads(pointFrom(x + width, y + height), center, angle),
+      pointRotateRads(pointFrom(x, y + height), center, angle),
     );
   } else {
     data = polygon(

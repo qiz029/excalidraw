@@ -293,9 +293,24 @@ export class API {
     switch (type) {
       case "rectangle":
       case "diamond":
+      case "hexagon":
+      case "triangle":
+      case "database":
+      case "pipe":
+      case "cloud":
+      case "document":
       case "ellipse":
         element = newElement({
-          type: type as "rectangle" | "diamond" | "ellipse",
+          type: type as
+            | "rectangle"
+            | "diamond"
+            | "hexagon"
+            | "triangle"
+            | "database"
+            | "pipe"
+            | "cloud"
+            | "document"
+            | "ellipse",
           ...base,
         });
         break;

@@ -23,7 +23,8 @@
     }
   }
 
-  .App-toolbar__extra-tools-trigger {
+  .App-toolbar__extra-tools-trigger,
+  .App-toolbar__shape-extensions-trigger {
     box-shadow: none;
     border: 0;
     background-color: transparent;

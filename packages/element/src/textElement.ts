@@ -368,6 +368,29 @@ export const getContainerCoords = (container: ExcalidrawElement) => {
     offsetX += container.width / 4;
     offsetY += container.height / 4;
   }
+  if (container.type === "hexagon") {
+    // the mid-section of a pointy-top hexagon (between height/4 and
+    // 3*height/4) spans the full width
+    offsetY += container.height / 4;
+  }
+  if (container.type === "triangle") {
+    // conservative inscribed rectangle of a pointy-top triangle
+    offsetX += container.width / 4;
+    offsetY += container.height / 2;
+  }
+  if (container.type === "database") {
+    // keep clear of the top cap and bottom arc (middle 60% of the height)
+    offsetY += container.height * 0.2;
+  }
+  if (container.type === "pipe") {
+    // keep clear of the left/right ellipse caps (middle 60% of the width)
+    offsetX += container.width * 0.2;
+  }
+  if (container.type === "cloud") {
+    // conservative inscribed rectangle of the cloud outline
+    offsetX += container.width * 0.15;
+    offsetY += container.height * 0.3;
+  }
   return {
     x: container.x + offsetX,
     y: container.y + offsetY,
@@ -438,6 +461,12 @@ const VALID_CONTAINER_TYPES = new Set([
   "rectangle",
   "ellipse",
   "diamond",
+  "hexagon",
+  "triangle",
+  "database",
+  "pipe",
+  "cloud",
+  "document",
   "arrow",
 ]);
 
@@ -461,6 +490,23 @@ export const computeContainerDimensionForBoundText = (
   }
   if (containerType === "diamond") {
     return 2 * (dimension + padding);
+  }
+  if (containerType === "hexagon") {
+    // conservative: same as diamond so the text always fits the mid-section
+    return 2 * (dimension + padding);
+  }
+  if (
+    containerType === "triangle" ||
+    containerType === "database" ||
+    containerType === "pipe" ||
+    containerType === "cloud"
+  ) {
+    // conservative: inscribed area is roughly half the bounding box
+    return 2 * (dimension + padding);
+  }
+  if (containerType === "document") {
+    // the wavy bottom edge eats ~20% of the height
+    return Math.round((dimension + padding) * 1.25);
   }
   return dimension + padding;
 };
@@ -487,6 +533,27 @@ export const getBoundTextMaxWidth = (
     // Math.round(width / 2) - https://github.com/excalidraw/excalidraw/pull/6265
     return Math.round(width / 2) - BOUND_TEXT_PADDING * 2;
   }
+  if (container.type === "hexagon") {
+    // the mid-section of a pointy-top hexagon spans the full width
+    return width - BOUND_TEXT_PADDING * 2;
+  }
+  if (container.type === "triangle") {
+    // conservative: the largest inscribed rectangle of a pointy-top
+    // triangle spans half the width
+    return Math.round(width / 2) - BOUND_TEXT_PADDING * 2;
+  }
+  if (container.type === "database") {
+    // the mid-section of the cylinder spans the full width
+    return width - BOUND_TEXT_PADDING * 2;
+  }
+  if (container.type === "pipe") {
+    // keep clear of the left/right ellipse caps (middle 60% of the width)
+    return Math.round(width * 0.6) - BOUND_TEXT_PADDING * 2;
+  }
+  if (container.type === "cloud") {
+    // conservative inscribed rectangle of the cloud outline
+    return Math.round(width * 0.7) - BOUND_TEXT_PADDING * 2;
+  }
   return width - BOUND_TEXT_PADDING * 2;
 };
 
@@ -512,6 +579,32 @@ export const getBoundTextMaxHeight = (
     // The height of the largest rectangle inscribed inside a rhombus is
     // Math.round(height / 2) - https://github.com/excalidraw/excalidraw/pull/6265
     return Math.round(height / 2) - BOUND_TEXT_PADDING * 2;
+  }
+  if (container.type === "hexagon") {
+    // the largest inscribed rectangle spans half the height of a pointy-top
+    // hexagon
+    return Math.round(height / 2) - BOUND_TEXT_PADDING * 2;
+  }
+  if (container.type === "triangle") {
+    // conservative: the largest inscribed rectangle of a pointy-top
+    // triangle spans half the height
+    return Math.round(height / 2) - BOUND_TEXT_PADDING * 2;
+  }
+  if (container.type === "database") {
+    // keep clear of the top cap and bottom arc (middle 60% of the height)
+    return Math.round(height * 0.6) - BOUND_TEXT_PADDING * 2;
+  }
+  if (container.type === "pipe") {
+    // the mid-section of the cylinder spans the full height
+    return height - BOUND_TEXT_PADDING * 2;
+  }
+  if (container.type === "cloud") {
+    // conservative inscribed rectangle of the cloud outline
+    return Math.round(height * 0.55) - BOUND_TEXT_PADDING * 2;
+  }
+  if (container.type === "document") {
+    // keep clear of the wavy bottom edge
+    return Math.round(height * 0.8) - BOUND_TEXT_PADDING * 2;
   }
   return height - BOUND_TEXT_PADDING * 2;
 };

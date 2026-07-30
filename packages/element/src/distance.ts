@@ -10,8 +10,10 @@ import type { GlobalPoint, Radians } from "@excalidraw/math";
 
 import {
   deconstructDiamondElement,
+  deconstructHexagonElement,
   deconstructLinearOrFreeDrawElement,
   deconstructRectanguloidElement,
+  deconstructTriangleElement,
 } from "./utils";
 
 import { elementCenterPoint } from "./bounds";
@@ -22,8 +24,10 @@ import type {
   ExcalidrawElement,
   ExcalidrawEllipseElement,
   ExcalidrawFreeDrawElement,
+  ExcalidrawHexagonElement,
   ExcalidrawLinearElement,
   ExcalidrawRectanguloidElement,
+  ExcalidrawTriangleElement,
 } from "./types";
 
 export const distanceToElement = (
@@ -40,9 +44,17 @@ export const distanceToElement = (
     case "embeddable":
     case "frame":
     case "magicframe":
+    case "database":
+    case "pipe":
+    case "cloud":
+    case "document":
       return distanceToRectanguloidElement(element, elementsMap, p);
     case "diamond":
       return distanceToDiamondElement(element, elementsMap, p);
+    case "hexagon":
+      return distanceToHexagonElement(element, elementsMap, p);
+    case "triangle":
+      return distanceToTriangleElement(element, elementsMap, p);
     case "ellipse":
       return distanceToEllipseElement(element, elementsMap, p);
     case "line":
@@ -99,6 +111,60 @@ const distanceToDiamondElement = (
   const rotatedPoint = pointRotateRads(p, center, -element.angle as Radians);
 
   const [sides, curves] = deconstructDiamondElement(element);
+
+  return Math.min(
+    ...sides.map((s) => distanceToLineSegment(rotatedPoint, s)),
+    ...curves.map((a) => curvePointDistance(a, rotatedPoint)),
+  );
+};
+
+/**
+ * Returns the distance of a point and the provided hexagon element, accounting
+ * for roundness and rotation
+ *
+ * @param element The hexagon element
+ * @param p The point to consider
+ * @returns The eucledian distance to the outline of the hexagon
+ */
+const distanceToHexagonElement = (
+  element: ExcalidrawHexagonElement,
+  elementsMap: ElementsMap,
+  p: GlobalPoint,
+): number => {
+  const center = elementCenterPoint(element, elementsMap);
+
+  // Rotate the point to the inverse direction to simulate the rotated hexagon
+  // points. It's all the same distance-wise.
+  const rotatedPoint = pointRotateRads(p, center, -element.angle as Radians);
+
+  const [sides, curves] = deconstructHexagonElement(element);
+
+  return Math.min(
+    ...sides.map((s) => distanceToLineSegment(rotatedPoint, s)),
+    ...curves.map((a) => curvePointDistance(a, rotatedPoint)),
+  );
+};
+
+/**
+ * Returns the distance of a point and the provided triangle element,
+ * accounting for roundness and rotation
+ *
+ * @param element The triangle element
+ * @param p The point to consider
+ * @returns The eucledian distance to the outline of the triangle
+ */
+const distanceToTriangleElement = (
+  element: ExcalidrawTriangleElement,
+  elementsMap: ElementsMap,
+  p: GlobalPoint,
+): number => {
+  const center = elementCenterPoint(element, elementsMap);
+
+  // Rotate the point to the inverse direction to simulate the rotated
+  // triangle points. It's all the same distance-wise.
+  const rotatedPoint = pointRotateRads(p, center, -element.angle as Radians);
+
+  const [sides, curves] = deconstructTriangleElement(element);
 
   return Math.min(
     ...sides.map((s) => distanceToLineSegment(rotatedPoint, s)),

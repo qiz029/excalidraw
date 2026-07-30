@@ -21,7 +21,7 @@ import {
   isTextElement,
   isFrameLikeElement,
 } from "@excalidraw/element";
-import { KEYS, arrayToMap, getLineHeight } from "@excalidraw/common";
+import { KEYS, TOOL_TYPE, arrayToMap, getLineHeight } from "@excalidraw/common";
 
 import type { GlobalPoint, LocalPoint, Radians } from "@excalidraw/math";
 
@@ -41,6 +41,7 @@ import type {
 } from "@excalidraw/element/types";
 
 import { createTestHook } from "../../components/App";
+import { getShapeExtensionTool } from "../../components/shapeExtensions";
 import { getTextEditor, TEXT_EDITOR_SELECTOR } from "../queries/dom";
 import { act, fireEvent, GlobalTestState, screen } from "../test-utils";
 
@@ -448,7 +449,24 @@ type Element<T extends DrawingToolName> = T extends "line" | "freedraw"
 
 export class UI {
   static clickTool = (toolName: ToolType | "lock") => {
-    fireEvent.click(GlobalTestState.renderResult.getByToolName(toolName));
+    const { renderResult } = GlobalTestState;
+    // extension shapes don't have a dedicated toolbar button — they live
+    // inside the shape extensions dropdown (rendered in a portal)
+    if (
+      toolName !== "lock" &&
+      getShapeExtensionTool(TOOL_TYPE[toolName] as ToolType)
+    ) {
+      fireEvent.click(renderResult.getByTestId("toolbar-shape-extensions"));
+      const menuItem = document.querySelector(
+        `[data-testid="toolbar-${TOOL_TYPE[toolName]}"]`,
+      );
+      if (!menuItem) {
+        throw new Error(`No menu item for extension shape "${toolName}"`);
+      }
+      fireEvent.click(menuItem);
+      return;
+    }
+    fireEvent.click(renderResult.getByToolName(toolName));
   };
 
   static clickLabeledElement = (label: string) => {

@@ -8,6 +8,7 @@ import { t } from "../i18n";
 import { useTunnels } from "../context/tunnels";
 
 import DropdownMenu from "./dropdownMenu/DropdownMenu";
+import { ShapeExtensionsDropdown } from "./ShapeExtensionsDropdown";
 import { ToolPopover } from "./ToolPopover";
 import {
   EraserToolButton,
@@ -201,6 +202,21 @@ export const MobileToolbar = ({ app, setAppState }: MobileToolbarProps) => {
             (tool) => tool.type === lastActiveLinearElement,
           ) || LINEAR_ELEMENT_TOOLS[0]
         }
+      />
+
+      {/* Shape extensions (hexagon, triangle, database, ...) */}
+      <ShapeExtensionsDropdown
+        app={app}
+        activeTool={activeTool}
+        setAppState={setAppState}
+        align="start"
+        triggerStyle={{
+          width: WIDTH,
+          height: WIDTH,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
       />
 
       {/* Text Tool */}

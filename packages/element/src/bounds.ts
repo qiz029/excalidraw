@@ -44,7 +44,9 @@ import {
 import { getElementShape } from "./shape";
 import {
   deconstructDiamondElement,
+  deconstructHexagonElement,
   deconstructRectanguloidElement,
+  deconstructTriangleElement,
 } from "./utils";
 import { intersectElementWithLineSegment } from "./collision";
 import { elementOverlapsWithFrame, getContainingFrame } from "./frame";
@@ -199,6 +201,26 @@ export class ElementBounds {
       const maxX = Math.max(x11, x12, x22, x21);
       const maxY = Math.max(y11, y12, y22, y21);
       bounds = [minX, minY, maxX, maxY];
+    } else if (element.type === "hexagon") {
+      const hexagonPoints = getHexagonPoints(element);
+      const rotatedVertices: GlobalPoint[] = [];
+      for (let i = 0; i + 1 < hexagonPoints.length; i += 2) {
+        rotatedVertices.push(
+          pointRotateRads(
+            pointFrom(x1 + hexagonPoints[i], y1 + hexagonPoints[i + 1]),
+            pointFrom(cx, cy),
+            element.angle,
+          ),
+        );
+      }
+      const xs = rotatedVertices.map(([x]) => x);
+      const ys = rotatedVertices.map(([, y]) => y);
+      bounds = [
+        Math.min(...xs),
+        Math.min(...ys),
+        Math.max(...xs),
+        Math.max(...ys),
+      ];
     } else if (element.type === "ellipse") {
       const w = (x2 - x1) / 2;
       const h = (y2 - y1) / 2;
@@ -365,6 +387,22 @@ export const getElementLineSegments = (
     const rotatedSides = getRotatedSides(sides, center, element.angle);
 
     return [...rotatedSides, ...cornerSegments];
+  } else if (element.type === "hexagon") {
+    const [sides, corners] = deconstructHexagonElement(element);
+    const cornerSegments = corners
+      .map((corner) => getSegmentsOnCurve(corner, center, element.angle))
+      .flat();
+    const rotatedSides = getRotatedSides(sides, center, element.angle);
+
+    return [...rotatedSides, ...cornerSegments];
+  } else if (element.type === "triangle") {
+    const [sides, corners] = deconstructTriangleElement(element);
+    const cornerSegments = corners
+      .map((corner) => getSegmentsOnCurve(corner, center, element.angle))
+      .flat();
+    const rotatedSides = getRotatedSides(sides, center, element.angle);
+
+    return [...rotatedSides, ...cornerSegments];
   } else if (shape.type === "polygon") {
     if (isTextElement(element)) {
       const container = getContainerElement(element, elementsMap);
@@ -425,6 +463,10 @@ const _isRectanguloidElement = (
       element.type === "embeddable" ||
       element.type === "frame" ||
       element.type === "magicframe" ||
+      element.type === "database" ||
+      element.type === "pipe" ||
+      element.type === "cloud" ||
+      element.type === "document" ||
       (element.type === "text" && !element.containerId))
   );
 };
@@ -531,6 +573,55 @@ export const getDiamondPoints = (element: ExcalidrawElement) => {
   const leftY = rightY;
 
   return [topX, topY, rightX, rightY, bottomX, bottomY, leftX, leftY];
+};
+
+/**
+ * Vertices of a pointy-top triangle inscribed in the element's bounding
+ * box, in element-local coordinates, going clockwise from the top vertex.
+ */
+export const getTrianglePoints = (element: ExcalidrawElement) => {
+  // Here we add +1 to avoid these numbers to be 0
+  // otherwise rough.js will throw an error complaining about it
+  const topX = Math.floor(element.width / 2) + 1;
+  const topY = 0;
+  const rightX = element.width;
+  const rightY = element.height;
+  const leftX = 0;
+  const leftY = rightY;
+
+  return [topX, topY, rightX, rightY, leftX, leftY];
+};
+
+/**
+ * Vertices of a pointy-top hexagon inscribed in the element's bounding box,
+ * in element-local coordinates, going clockwise from the top vertex.
+ */
+export const getHexagonPoints = (element: ExcalidrawElement) => {
+  // Here we add +1 to avoid these numbers to be 0
+  // otherwise rough.js will throw an error complaining about it
+  const topX = Math.floor(element.width / 2) + 1;
+  const topY = 0;
+  const rightX = element.width;
+  const upperRightY = Math.floor(element.height / 4) + 1;
+  const lowerRightY = Math.floor((element.height * 3) / 4) + 1;
+  const bottomX = topX;
+  const bottomY = element.height;
+  const leftX = 0;
+
+  return [
+    topX,
+    topY,
+    rightX,
+    upperRightY,
+    rightX,
+    lowerRightY,
+    bottomX,
+    bottomY,
+    leftX,
+    lowerRightY,
+    leftX,
+    upperRightY,
+  ];
 };
 
 // reference: https://eliot-jones.com/2019/12/cubic-bezier-curve-bounding-boxes

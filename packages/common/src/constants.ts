@@ -9,7 +9,7 @@ import { COLOR_PALETTE } from "./colors";
 export const supportsResizeObserver =
   typeof window !== "undefined" && "ResizeObserver" in window;
 
-export const APP_NAME = "Excalidraw";
+export const APP_NAME = "toddDraw";
 
 // distance when creating text before it's considered `autoResize: false`
 // we're using higher threshold so that clicks that end up being drags
@@ -487,6 +487,12 @@ export const TOOL_TYPE = {
   lasso: "lasso",
   rectangle: "rectangle",
   diamond: "diamond",
+  hexagon: "hexagon",
+  triangle: "triangle",
+  database: "database",
+  pipe: "pipe",
+  cloud: "cloud",
+  document: "document",
   ellipse: "ellipse",
   arrow: "arrow",
   line: "line",

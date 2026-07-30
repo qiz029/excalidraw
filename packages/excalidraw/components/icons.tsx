@@ -348,6 +348,83 @@ export const DiamondIcon = createIcon(
   tablerIconProps,
 );
 
+// tabler-icons: hexagon
+export const HexagonIcon = createIcon(
+  <g strokeWidth="1.5">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M19.875 6.27a2.225 2.225 0 0 1 1.125 1.948v7.284c0 .809 -.443 1.555 -1.158 1.948l-6.75 4.27a2.269 2.269 0 0 1 -2.184 0l-6.75 -4.27a2.225 2.225 0 0 1 -1.158 -1.948v-7.285c0 -.809 .443 -1.554 1.158 -1.947l6.75 -3.98a2.33 2.33 0 0 1 2.25 0l6.75 3.98h-.033z" />
+  </g>,
+
+  tablerIconProps,
+);
+
+// tabler-icons: triangle
+export const TriangleIcon = createIcon(
+  <g strokeWidth="1.5">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M10.24 3.957l-8.422 14.06a1.989 1.989 0 0 0 1.651 2.983h17.055a1.989 1.989 0 0 0 1.651 -2.983l-8.422 -14.06a1.989 1.989 0 0 0 -3.302 0z" />
+  </g>,
+
+  tablerIconProps,
+);
+
+// tabler-icons: database
+export const DatabaseIcon = createIcon(
+  <g strokeWidth="1.5">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <ellipse cx="12" cy="6" rx="8" ry="3" />
+    <path d="M4 6v6a8 3 0 0 0 16 0v-6" />
+    <path d="M4 12v6a8 3 0 0 0 16 0v-6" />
+  </g>,
+
+  tablerIconProps,
+);
+
+// horizontal cylinder (pipe/queue)
+export const PipeIcon = createIcon(
+  <g strokeWidth="1.5">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <ellipse cx="5" cy="12" rx="2.5" ry="5" />
+    <ellipse cx="19" cy="12" rx="2.5" ry="5" />
+    <path d="M5 7h14M5 17h14" />
+  </g>,
+
+  tablerIconProps,
+);
+
+// tabler-icons: cloud
+export const CloudIcon = createIcon(
+  <g strokeWidth="1.5">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M17.5 19h-11a4.5 4.5 0 1 1 .42 -8.98a6 6 0 0 1 11.58 1.49a3.75 3.75 0 0 1 -1 7.49z" />
+  </g>,
+
+  tablerIconProps,
+);
+
+// document with a wavy bottom edge
+export const DocumentIcon = createIcon(
+  <g strokeWidth="1.5">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M6 3h12v15c-2 2 -4 -2 -6 0c-2 2 -4 -2 -6 0v-15z" />
+  </g>,
+
+  tablerIconProps,
+);
+
+// composite shapes (square + circle + triangle), used for the shape
+// extensions dropdown trigger
+export const ShapesIcon = createIcon(
+  <g strokeWidth="1.5">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <rect x="3" y="3" width="8" height="8" rx="1" />
+    <circle cx="16.5" cy="7" r="4" />
+    <path d="M13 13.5l4.5 7h-9z" />
+  </g>,
+
+  tablerIconProps,
+);
+
 // tabler-icons: circle
 export const EllipseIcon = createIcon(
   <g strokeWidth="1.5">

@@ -93,6 +93,30 @@ export type ExcalidrawDiamondElement = _ExcalidrawElementBase & {
   type: "diamond";
 };
 
+export type ExcalidrawHexagonElement = _ExcalidrawElementBase & {
+  type: "hexagon";
+};
+
+export type ExcalidrawTriangleElement = _ExcalidrawElementBase & {
+  type: "triangle";
+};
+
+export type ExcalidrawDatabaseElement = _ExcalidrawElementBase & {
+  type: "database";
+};
+
+export type ExcalidrawPipeElement = _ExcalidrawElementBase & {
+  type: "pipe";
+};
+
+export type ExcalidrawCloudElement = _ExcalidrawElementBase & {
+  type: "cloud";
+};
+
+export type ExcalidrawDocumentElement = _ExcalidrawElementBase & {
+  type: "document";
+};
+
 export type ExcalidrawEllipseElement = _ExcalidrawElementBase & {
   type: "ellipse";
 };
@@ -181,15 +205,31 @@ export type ExcalidrawGenericElement =
   | ExcalidrawSelectionElement
   | ExcalidrawRectangleElement
   | ExcalidrawDiamondElement
+  | ExcalidrawHexagonElement
+  | ExcalidrawTriangleElement
+  | ExcalidrawDatabaseElement
+  | ExcalidrawPipeElement
+  | ExcalidrawCloudElement
+  | ExcalidrawDocumentElement
   | ExcalidrawEllipseElement;
 
 export type ExcalidrawFlowchartNodeElement =
   | ExcalidrawRectangleElement
   | ExcalidrawDiamondElement
+  | ExcalidrawHexagonElement
+  | ExcalidrawTriangleElement
+  | ExcalidrawDatabaseElement
+  | ExcalidrawPipeElement
+  | ExcalidrawCloudElement
+  | ExcalidrawDocumentElement
   | ExcalidrawEllipseElement;
 
 export type ExcalidrawRectanguloidElement =
   | ExcalidrawRectangleElement
+  | ExcalidrawDatabaseElement
+  | ExcalidrawPipeElement
+  | ExcalidrawCloudElement
+  | ExcalidrawDocumentElement
   | ExcalidrawImageElement
   | ExcalidrawTextElement
   | ExcalidrawFreeDrawElement
@@ -259,6 +299,12 @@ export type ExcalidrawTextElement = _ExcalidrawElementBase &
 export type ExcalidrawBindableElement =
   | ExcalidrawRectangleElement
   | ExcalidrawDiamondElement
+  | ExcalidrawHexagonElement
+  | ExcalidrawTriangleElement
+  | ExcalidrawDatabaseElement
+  | ExcalidrawPipeElement
+  | ExcalidrawCloudElement
+  | ExcalidrawDocumentElement
   | ExcalidrawEllipseElement
   | ExcalidrawTextElement
   | ExcalidrawImageElement
@@ -270,6 +316,12 @@ export type ExcalidrawBindableElement =
 export type ExcalidrawTextContainer =
   | ExcalidrawRectangleElement
   | ExcalidrawDiamondElement
+  | ExcalidrawHexagonElement
+  | ExcalidrawTriangleElement
+  | ExcalidrawDatabaseElement
+  | ExcalidrawPipeElement
+  | ExcalidrawCloudElement
+  | ExcalidrawDocumentElement
   | ExcalidrawEllipseElement
   | ExcalidrawArrowElement;
 

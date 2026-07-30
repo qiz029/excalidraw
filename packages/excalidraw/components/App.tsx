@@ -2035,7 +2035,7 @@ class App extends React.Component<AppProps, AppState> {
                         // https://stackoverflow.com/q/18470015
                         scrolling="no"
                         referrerPolicy="no-referrer-when-downgrade"
-                        title="Excalidraw Embedded Content"
+                        title="toddDraw Embedded Content"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen={true}
                         sandbox={`${
@@ -10326,6 +10326,12 @@ class App extends React.Component<AppProps, AppState> {
       | "selection"
       | "rectangle"
       | "diamond"
+      | "hexagon"
+      | "triangle"
+      | "database"
+      | "pipe"
+      | "cloud"
+      | "document"
       | "ellipse"
       | "iframe"
       | "embeddable",

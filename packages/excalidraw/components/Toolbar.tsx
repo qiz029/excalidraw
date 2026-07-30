@@ -41,6 +41,7 @@ import {
   SelectionToolPopover,
   TextToolButton,
 } from "./Tools";
+import { ShapeExtensionsDropdown } from "./ShapeExtensionsDropdown";
 
 import type {
   AppClassProperties,
@@ -264,6 +265,11 @@ export const Toolbar = ({
         <RectangleToolButton {...toolProps} />
         <DiamondToolButton {...toolProps} />
         <EllipseToolButton {...toolProps} />
+        <ShapeExtensionsDropdown
+          app={app}
+          activeTool={activeTool}
+          setAppState={setAppState}
+        />
         <ArrowToolButton {...toolProps} />
         <LineToolButton {...toolProps} />
         {isCompactStylesPanel ? (
