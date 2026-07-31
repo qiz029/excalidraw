@@ -95,7 +95,7 @@ export const AppSidebar = () => {
               opacity: 0.9,
             }}
           />
-          <SidebarPromoCopy text="Make comments with toddDraw+" />
+          <SidebarPromoCopy text="Make comments with Dood+" />
           <LinkButton
             href={`${
               import.meta.env.VITE_APP_PLUS_LP
@@ -116,7 +116,7 @@ export const AppSidebar = () => {
               opacity: 0.7,
             }}
           />
-          <SidebarPromoCopy text="Create presentation with toddDraw+" />
+          <SidebarPromoCopy text="Create presentation with Dood+" />
           <LinkButton
             href={`${
               import.meta.env.VITE_APP_PLUS_LP
